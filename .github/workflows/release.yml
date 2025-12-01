@@ -51,7 +51,7 @@ jobs:
           fi
 
       - name: Build plugin
-        run: npm run build   # <-- NOW after manifest updated
+        run: npm run build
 
       - name: Zip plugin
         run: zip -r bunny-publisher.zip main.js manifest.json styles.css
