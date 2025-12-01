@@ -14,16 +14,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # ensures full history so git push/pull work correctly
+          fetch-depth: 0
 
       - name: Use Node.js
         uses: actions/setup-node@v4
         with:
           node-version: "18.x"
 
-      - name: Install and build dependencies
-        run: |
-          npm ci
+      - name: Install dependencies
+        run: npm ci
 
       - name: Update manifest.json version from tag
         run: |
@@ -31,44 +30,35 @@ jobs:
           version="${tag#v}"
           echo "Setting manifest.json version to $version"
           jq --arg ver "$version" '.version=$ver' manifest.json > tmp.$$.json && mv tmp.$$.json manifest.json
-          cat manifest.json
-
-      - name: Build plugin
-        run: npm run build
 
       - name: Update versions.json
         run: |
           version=$(jq -r .version manifest.json)
-          echo "Updating versions.json for version $version"
           if [ ! -f versions.json ]; then
             echo "{}" > versions.json
           fi
           jq --arg v "v$version" --arg ver "$version" '.[$v]=$ver' versions.json > tmp.$$.json && mv tmp.$$.json versions.json
-          cat versions.json
 
       - name: Commit version updates
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add manifest.json versions.json
-          if git diff --cached --quiet; then
-            echo "No changes to commit"
-          else
+          if ! git diff --cached --quiet; then
             git commit -m "Bump version to $version"
             git pull --rebase origin main || echo "No rebase needed"
             git push origin HEAD:main
           fi
 
+      - name: Build plugin
+        run: npm run build   # <-- NOW after manifest updated
+
       - name: Zip plugin
-        run: |
-          zip -r bunny-publisher.zip main.js manifest.json styles.css
+        run: zip -r bunny-publisher.zip main.js manifest.json styles.css
 
       - name: Create GitHub release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           tag="${GITHUB_REF#refs/tags/}"
-          gh release create "$tag" \
-            --title="$tag" \
-            --latest \
-            main.js manifest.json styles.css bunny-publisher.zip
+          gh release create "$tag" --title="$tag" --latest main.js manifest.json styles.css bunny-publisher.zip
