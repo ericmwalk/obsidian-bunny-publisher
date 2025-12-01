@@ -1,0 +1,14 @@
+{
+  "name": "obsidian-bunny-publisher",
+  "version": "0.1.0",
+  "description": "Upload files from Obsidian to Bunny.net.",
+  "main": "src/main.ts",
+  "scripts": {
+    "dev": "esbuild src/main.ts --bundle --outfile=main.js --external:obsidian --format=cjs --watch",
+    "build": "esbuild src/main.ts --bundle --outfile=main.js --external:obsidian --format=cjs --minify"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.24",
+    "esbuild": "^0.21.5"
+  }
+}

@@ -1,0 +1,20 @@
+/* Bunny Publisher */
+
+.bunny-publisher-notice {
+  font-family: "Lato", sans-serif;
+}
+
+.modal-content {
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+.clickable-icon {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+}
+
+
+
+

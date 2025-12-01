@@ -1,0 +1,144 @@
+import { Plugin, Notice, TFile, MarkdownView } from "obsidian";
+import { BunnySettings, BunnySettingTab, DEFAULT_SETTINGS } from "./settings";
+import { uploadToBunny } from "./bunnyuploader";
+import { generateAltTextForFile } from "./alttext/alttextgenerator";
+
+export default class BunnyPublisherPlugin extends Plugin {
+  settings: BunnySettings;
+
+  async onload() {
+    await this.loadSettings();
+
+    console.log("🐇 Bunny Publisher onload triggered");
+
+    this.addRibbonIcon("rabbit", "Upload embedded images to Bunny.net", async () => {
+      const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+      if (!view) {
+        new Notice("Open a Markdown note to upload embedded images.");
+        return;
+      }
+
+      const editor = view.editor;
+      const content = editor.getValue();
+
+      // Match Obsidian embeds
+      const matches = [...content.matchAll(/!\[\[(.*?)\]\]/g)];
+
+      if (matches.length === 0) {
+        new Notice("No embedded images found in this note.");
+        return;
+      }
+
+      new Notice(`Uploading ${matches.length} file(s)...`);
+
+      let updated = content;
+      let uploadCount = 0;
+      let deletedCount = 0;
+      let failCount = 0;
+
+      for (const match of matches) {
+        const filename = match[1];
+
+        console.log("Found embed:", filename);
+
+        const file = this.app.metadataCache.getFirstLinkpathDest(
+          filename,
+          view.file.path
+        );
+
+        if (!(file instanceof TFile)) {
+          console.warn("⚠️ Skipping: not a valid TFile:", filename);
+          continue;
+        }
+
+        const isImage = file.extension.match(/(png|jpg|jpeg|gif|webp)$/i);
+        const isVideo = file.extension.match(/(mp4|mov|webm)$/i);
+
+        if (!isImage && !isVideo) {
+          console.warn("⚠️ Skipping unsupported file type:", file.extension);
+          continue;
+        }
+
+        try {
+          new Notice(`Uploading ${file.name}...`);
+
+          // Upload to Bunny
+          const cdnUrl = await uploadToBunny(this.app, file, this.settings);
+          uploadCount++;
+
+          let replacement = "";
+
+          /* -------------------------------------------------
+           * IMAGE HANDLING
+           * ------------------------------------------------- */
+          if (isImage) {
+            let alt = "";
+
+            if (this.settings.useAiAltText) {
+              try {
+                new Notice(`Generating alt text for ${file.name}...`);
+                alt = await generateAltTextForFile(
+                  this.app,
+                  this.settings,
+                  file
+                );
+              } catch (err) {
+                console.error("AI alt text failed:", err);
+                // Let `alt` stay "" (or you could fall back to filename here)
+              }
+            }
+
+            replacement = `![${alt}](${cdnUrl})`;
+          }
+
+
+          /* -------------------------------------------------
+           * VIDEO HANDLING
+           * ------------------------------------------------- */
+          else if (isVideo) {
+            replacement = `<video controls src="${cdnUrl}" style="max-width:100%;border-radius:8px;"></video>`;
+          }
+
+          // Replace the original embed with the new markdown
+          updated = updated.replace(match[0], replacement);
+
+          // Optional delete
+          if (this.settings.deleteAfterUpload) {
+            await this.app.vault.delete(file);
+            deletedCount++;
+          }
+        } catch (e: any) {
+          failCount++;
+          console.error("Upload failed for", filename, e);
+          new Notice(`❌ Failed to upload ${filename}: ${e.message}`);
+        }
+      }
+
+      // Update note contents with replaced embeds
+      editor.setValue(updated);
+
+      /* -------------------------------------------------
+       * SUMMARY NOTICE
+       * ------------------------------------------------- */
+      let summary = `🐇 Uploaded ${uploadCount} file${uploadCount !== 1 ? "s" : ""}`;
+      if (deletedCount > 0)
+        summary += ` • 🗑️ Deleted ${deletedCount}`;
+      if (failCount > 0)
+        summary += ` • ❌ Failed ${failCount}`;
+      summary += ".";
+
+      new Notice(summary);
+    });
+
+    this.addSettingTab(new BunnySettingTab(this.app, this));
+  }
+
+  async loadSettings() {
+    this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+  }
+
+  async saveSettings() {
+    await this.saveData(this.settings);
+  }
+}
+
