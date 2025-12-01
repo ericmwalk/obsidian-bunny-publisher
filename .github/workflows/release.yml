@@ -61,7 +61,7 @@ jobs:
 
       - name: Zip plugin
         run: |
-          zip -r omglol-publish.zip main.js manifest.json styles.css
+          zip -r bunny-publisher.zip main.js manifest.json styles.css
 
       - name: Create GitHub release
         env:
