@@ -3,7 +3,7 @@
   "name": "Bunny Publisher",
   "version": "1.0.0",
   "minAppVersion": "1.4.0",
-  "description": "Upload images, videos, and files from Obsidian to Bunny.net storage.",
+  "description": "Upload images, videos, and files to Bunny.net storage.",
   "author": "Eric Walker",
   "authorUrl": "https://runs.lol",
   "isDesktopOnly": false
