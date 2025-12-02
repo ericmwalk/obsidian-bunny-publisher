@@ -2,6 +2,24 @@
 import { requestUrl } from "obsidian";
 import type { AltTextProvider, AltTextRequest } from "./alttextprovider";
 
+interface OpenAIMessageContentPart {
+  type: string;
+  text?: string;
+  image_url?: {
+    url: string;
+  };
+}
+
+interface OpenAIChoice {
+  message?: {
+    content?: string | OpenAIMessageContentPart[];
+  };
+}
+
+interface OpenAIResponse {
+  choices?: OpenAIChoice[];
+}
+
 export class OpenAIAltTextProvider implements AltTextProvider {
   private apiKey: string;
   private model: string;
@@ -20,7 +38,7 @@ export class OpenAIAltTextProvider implements AltTextProvider {
       url: "https://api.openai.com/v1/chat/completions",
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${this.apiKey}`,
+        Authorization: `Bearer ${this.apiKey}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
@@ -33,7 +51,6 @@ export class OpenAIAltTextProvider implements AltTextProvider {
               {
                 type: "image_url",
                 image_url: {
-                  // Use inline base64 so this works regardless of hosting
                   url: `data:${req.mimeType};base64,${req.imageBase64}`,
                 },
               },
@@ -44,14 +61,31 @@ export class OpenAIAltTextProvider implements AltTextProvider {
       }),
     });
 
-    const data: any = response.json;
-    const content = data?.choices?.[0]?.message?.content;
+    // No "any": narrow from unknown to our typed response
+    const data = response.json as unknown;
 
-    if (Array.isArray(content) && content.length > 0) {
-      const textPart = content.find((p: any) => p.type === "text");
+    if (
+      typeof data !== "object" ||
+      data === null ||
+      !("choices" in data)
+    ) {
+      return "";
+    }
+
+    const typed = data as OpenAIResponse;
+    const choice = typed.choices?.[0];
+    const content = choice?.message?.content;
+
+    // Case 1: content is array of structured parts
+    if (Array.isArray(content)) {
+      const textPart = content.find(
+        (p): p is OpenAIMessageContentPart =>
+          typeof p === "object" && p !== null && p.type === "text"
+      );
       if (textPart?.text) return textPart.text.trim();
     }
 
+    // Case 2: content is a plain string
     if (typeof content === "string") {
       return content.trim();
     }

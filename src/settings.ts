@@ -1,6 +1,6 @@
-import { PluginSettingTab, Setting, App, setIcon } from "obsidian";
+import { PluginSettingTab, Setting, App, Plugin, setIcon } from "obsidian";
 
-export type AIProviderType = "openai" | "gemini" | "none";
+export type AIProviderType = "openai" | "gemini" | "perplexity" | "none";
 
 export interface BunnySettings {
   storageZoneName: string;
@@ -31,9 +31,9 @@ export const DEFAULT_SETTINGS: BunnySettings = {
 };
 
 export class BunnySettingTab extends PluginSettingTab {
-  plugin: any;
+  plugin: Plugin;
 
-  constructor(app: App, plugin: any) {
+  constructor(app: App, plugin: Plugin) {
     super(app, plugin);
     this.plugin = plugin;
   }
@@ -42,7 +42,10 @@ export class BunnySettingTab extends PluginSettingTab {
     const { containerEl } = this;
     containerEl.empty();
 
-    containerEl.createEl("h2", { text: "🐇 Bunny Publisher Settings" });
+    // Replaces <h2> with Obsidian-native heading
+    new Setting(containerEl)
+      .setName("🐇 Bunny publisher settings")
+      .setHeading();
 
     /* ------------------------------------------------------------------
      * Helper to add an input with an "eye" toggle
@@ -65,15 +68,11 @@ export class BunnySettingTab extends PluginSettingTab {
 
         // Eye toggle
         const eyeIcon = text.inputEl.parentElement?.createEl("div", {
-          cls: "clickable-icon",
+          cls: "bunny-eye-toggle clickable-icon",
         });
 
         if (eyeIcon) {
           setIcon(eyeIcon, "eye");
-          eyeIcon.style.cursor = "pointer";
-          eyeIcon.style.marginLeft = "8px";
-          eyeIcon.style.display = "flex";
-          eyeIcon.style.alignItems = "center";
 
           let visible = false;
           eyeIcon.onclick = () => {
@@ -84,6 +83,7 @@ export class BunnySettingTab extends PluginSettingTab {
 
           text.inputEl.parentElement?.appendChild(eyeIcon);
         }
+
       });
     };
 
@@ -92,19 +92,19 @@ export class BunnySettingTab extends PluginSettingTab {
      * ------------------------------------------------------------------ */
 
     new Setting(containerEl)
-      .setName("Storage Zone Name")
+      .setName("Storage zone name")
       .addText((t) =>
         t
           .setPlaceholder("my-zone")
-          .setValue(this.plugin.settings.storageZoneName)
+          .setValue((this.plugin as any).settings.storageZoneName)
           .onChange(async (v) => {
-            this.plugin.settings.storageZoneName = v;
-            await this.plugin.saveSettings();
+            (this.plugin as any).settings.storageZoneName = v;
+            await (this.plugin as any).saveSettings();
           })
       );
 
     const bunnyKeySetting = new Setting(containerEl)
-      .setName("Bunny.net Access Key")
+      .setName("Bunny.net access key")
       .setDesc(
         createFragment((frag) => {
           frag.appendText("Your Bunny.net API access key. ");
@@ -117,53 +117,53 @@ export class BunnySettingTab extends PluginSettingTab {
 
     addMaskedInput(
       bunnyKeySetting,
-      () => this.plugin.settings.apiKey || "",
+      () => (this.plugin as any).settings.apiKey || "",
       async (v) => {
-        this.plugin.settings.apiKey = v;
-        await this.plugin.saveSettings();
+        (this.plugin as any).settings.apiKey = v;
+        await (this.plugin as any).saveSettings();
       }
     );
 
     new Setting(containerEl)
-      .setName("Storage Hostname")
+      .setName("Storage hostname")
       .setDesc("Use your region endpoint (e.g. ny.storage.bunnycdn.com).")
       .addText((t) =>
         t
           .setPlaceholder("storage.bunnycdn.com")
-          .setValue(this.plugin.settings.storageHostname)
+          .setValue((this.plugin as any).settings.storageHostname)
           .onChange(async (v) => {
-            this.plugin.settings.storageHostname = v;
-            await this.plugin.saveSettings();
+            (this.plugin as any).settings.storageHostname = v;
+            await (this.plugin as any).saveSettings();
           })
       );
 
     new Setting(containerEl)
-      .setName("CDN Hostname")
+      .setName("CDN hostname")
       .setDesc(
         "Your custom Bunny CDN hostname (e.g. cdn.your-domain.com). If not using a custom domain, use {pullzone}.b-cdn.net."
       )
       .addText((t) =>
         t
           .setPlaceholder("cdn.yoursite.net")
-          .setValue(this.plugin.settings.cdnHostname)
+          .setValue((this.plugin as any).settings.cdnHostname)
           .onChange(async (v) => {
-            this.plugin.settings.cdnHostname = v;
-            await this.plugin.saveSettings();
+            (this.plugin as any).settings.cdnHostname = v;
+            await (this.plugin as any).saveSettings();
           })
       );
 
     new Setting(containerEl)
-      .setName("Upload Path")
+      .setName("Upload path")
       .setDesc(
         "You can use {{YYYY}} and {{MM}} for date-based folders (e.g. media/{{YYYY}}/{{MM}})."
       )
       .addText((t) =>
         t
           .setPlaceholder("images/2025")
-          .setValue(this.plugin.settings.uploadPath)
+          .setValue((this.plugin as any).settings.uploadPath)
           .onChange(async (v) => {
-            this.plugin.settings.uploadPath = v;
-            await this.plugin.saveSettings();
+            (this.plugin as any).settings.uploadPath = v;
+            await (this.plugin as any).saveSettings();
           })
       );
 
@@ -172,43 +172,44 @@ export class BunnySettingTab extends PluginSettingTab {
      * ------------------------------------------------------------------ */
 
     new Setting(containerEl)
-      .setName("Use AI-generated Alt Text")
+      .setName("Use AI-generated alt text")
       .setDesc("Automatically generate alt text for uploaded images.")
       .addToggle((t) =>
         t
-          .setValue(this.plugin.settings.useAiAltText)
+          .setValue((this.plugin as any).settings.useAiAltText)
           .onChange(async (value) => {
-            this.plugin.settings.useAiAltText = value;
-            await this.plugin.saveSettings();
+            (this.plugin as any).settings.useAiAltText = value;
+            await (this.plugin as any).saveSettings();
             this.display();
           })
       );
 
-    if (this.plugin.settings.useAiAltText) {
+    if ((this.plugin as any).settings.useAiAltText) {
       new Setting(containerEl)
-        .setName("AI Provider")
+        .setName("AI provider")
         .setDesc("Choose which AI model to use for alt text generation.")
         .addDropdown((drop) => {
           drop.addOption("openai", "OpenAI (ChatGPT)");
           drop.addOption("gemini", "Google Gemini");
           drop.addOption("perplexity", "Perplexity");
-          drop.addOption("none", "None (fallback to filename)");
+          drop.addOption("none", "None (filename only)");
 
           drop
-            .setValue(this.plugin.settings.aiProvider)
+            .setValue((this.plugin as any).settings.aiProvider)
             .onChange(async (value) => {
-              this.plugin.settings.aiProvider = value as AIProviderType;
-              await this.plugin.saveSettings();
-              this.display(); // refresh to show relevant key field
+              (this.plugin as any).settings.aiProvider =
+                value as AIProviderType;
+              await (this.plugin as any).saveSettings();
+              this.display();
             });
         });
 
       /* ------------------------------
        * OPENAI KEY INPUT (masked)
        * ------------------------------ */
-      if (this.plugin.settings.aiProvider === "openai") {
+      if ((this.plugin as any).settings.aiProvider === "openai") {
         const openaiSetting = new Setting(containerEl)
-          .setName("OpenAI API Key")
+          .setName("OpenAI API key")
           .setDesc(
             createFragment((frag) => {
               frag.appendText("Used for generating alt text. ");
@@ -221,10 +222,10 @@ export class BunnySettingTab extends PluginSettingTab {
 
         addMaskedInput(
           openaiSetting,
-          () => this.plugin.settings.openaiKey,
+          () => (this.plugin as any).settings.openaiKey,
           async (v) => {
-            this.plugin.settings.openaiKey = v;
-            await this.plugin.saveSettings();
+            (this.plugin as any).settings.openaiKey = v;
+            await (this.plugin as any).saveSettings();
           }
         );
       }
@@ -232,9 +233,9 @@ export class BunnySettingTab extends PluginSettingTab {
       /* ------------------------------
        * GEMINI KEY INPUT (masked)
        * ------------------------------ */
-      if (this.plugin.settings.aiProvider === "gemini") {
+      if ((this.plugin as any).settings.aiProvider === "gemini") {
         const geminiSetting = new Setting(containerEl)
-          .setName("Gemini API Key")
+          .setName("Gemini API key")
           .setDesc(
             createFragment((frag) => {
               frag.appendText("Used for Gemini alt text. ");
@@ -247,31 +248,31 @@ export class BunnySettingTab extends PluginSettingTab {
 
         addMaskedInput(
           geminiSetting,
-          () => this.plugin.settings.geminiKey,
+          () => (this.plugin as any).settings.geminiKey,
           async (v) => {
-            this.plugin.settings.geminiKey = v;
-            await this.plugin.saveSettings();
+            (this.plugin as any).settings.geminiKey = v;
+            await (this.plugin as any).saveSettings();
           }
         );
       }
+
       /* ------------------------------
        * PERPLEXITY KEY INPUT (masked)
-       * ------------------------------ */      
-      if (this.plugin.settings.aiProvider === "perplexity") {
-         const perplexitySetting = new Setting(containerEl)
-           .setName("Perplexity API Key")
-           .setDesc("Used for Perplexity alt-text generation.")
-         
-         addMaskedInput(
-           perplexitySetting,
-           () => this.plugin.settings.perplexityKey,
-           async (v) => {
-             this.plugin.settings.perplexityKey = v;
-             await this.plugin.saveSettings();
-           }
-         );
-      }
+       * ------------------------------ */
+      if ((this.plugin as any).settings.aiProvider === "perplexity") {
+        const perplexitySetting = new Setting(containerEl)
+          .setName("Perplexity API key")
+          .setDesc("Used for Perplexity alt-text generation.");
 
+        addMaskedInput(
+          perplexitySetting,
+          () => (this.plugin as any).settings.perplexityKey,
+          async (v) => {
+            (this.plugin as any).settings.perplexityKey = v;
+            await (this.plugin as any).saveSettings();
+          }
+        );
+      }
     }
 
     /* ------------------------------------------------------------------
@@ -282,10 +283,10 @@ export class BunnySettingTab extends PluginSettingTab {
       .setDesc("Removes the original file after successful upload.")
       .addToggle((t) =>
         t
-          .setValue(this.plugin.settings.deleteAfterUpload)
+          .setValue((this.plugin as any).settings.deleteAfterUpload)
           .onChange(async (value) => {
-            this.plugin.settings.deleteAfterUpload = value;
-            await this.plugin.saveSettings();
+            (this.plugin as any).settings.deleteAfterUpload = value;
+            await (this.plugin as any).saveSettings();
           })
       );
   }

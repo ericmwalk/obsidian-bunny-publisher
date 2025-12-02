@@ -2,11 +2,28 @@
 import { requestUrl } from "obsidian";
 import type { AltTextProvider, AltTextRequest } from "./alttextprovider";
 
+interface GeminiContentPart {
+  text?: string;
+  inlineData?: {
+    mimeType: string;
+    data: string;
+  };
+}
+
+interface GeminiCandidate {
+  content?: {
+    parts?: GeminiContentPart[];
+  };
+}
+
+interface GeminiResponse {
+  candidates?: GeminiCandidate[];
+}
+
 export class GeminiAltTextProvider implements AltTextProvider {
   private apiKey: string;
   private model: string;
 
-// might have to figure out in the future how to make this so you can change it going forward
   constructor(apiKey: string, model: string = "gemini-2.0-flash") {
     this.apiKey = apiKey;
     this.model = model;
@@ -17,7 +34,6 @@ export class GeminiAltTextProvider implements AltTextProvider {
       throw new Error("Gemini API key not configured.");
     }
 
-    // ✔ Correct Gemini v1 endpoint
     const url = `https://generativelanguage.googleapis.com/v1/models/${this.model}:generateContent?key=${this.apiKey}`;
 
     const response = await requestUrl({
@@ -26,8 +42,6 @@ export class GeminiAltTextProvider implements AltTextProvider {
       headers: {
         "Content-Type": "application/json",
       },
-
-      // ✔ Correct Gemini v1 request body
       body: JSON.stringify({
         contents: [
           {
@@ -46,21 +60,29 @@ export class GeminiAltTextProvider implements AltTextProvider {
       })
     });
 
-    const data: any = response.json;
-    const candidate = data?.candidates?.[0];
-    const parts = candidate?.content?.parts;
+    // No "any": first treat as unknown, then narrow safely.
+    const data = response.json as unknown;
 
-    if (Array.isArray(parts)) {
-      // Combine text parts
-      const text = parts
-        .map((p: any) => p.text)
-        .filter((t: any) => typeof t === "string")
-        .join(" ")
-        .trim();
-
-      return text;
+    if (
+      typeof data !== "object" ||
+      data === null ||
+      !("candidates" in data)
+    ) {
+      return "";
     }
 
-    return "";
+    const typed = data as GeminiResponse;
+    const candidate = typed.candidates?.[0];
+    const parts = candidate?.content?.parts;
+
+    if (!Array.isArray(parts)) return "";
+
+    const text = parts
+      .map((p) => p.text)
+      .filter((t): t is string => typeof t === "string")
+      .join(" ")
+      .trim();
+
+    return text;
   }
 }

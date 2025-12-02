@@ -6,11 +6,14 @@ import { OpenAIAltTextProvider } from "./openaialttextprovider";
 import { GeminiAltTextProvider } from "./geminialttextprovider";
 import { PerplexityAltTextProvider } from "./perplexityalttextprovider";
 
-
-export function createAltTextProvider(settings: BunnySettings): AltTextProvider | null {
+export function createAltTextProvider(
+  settings: BunnySettings
+): AltTextProvider | null {
   const provider: AIProviderType = settings.aiProvider ?? "openai";
 
-  if (provider === "none") return null;
+  if (provider === "none") {
+    return null;
+  }
 
   if (provider === "openai") {
     if (!settings.openaiKey) return null;
@@ -26,7 +29,6 @@ export function createAltTextProvider(settings: BunnySettings): AltTextProvider 
     if (!settings.perplexityKey) return null;
     return new PerplexityAltTextProvider(settings.perplexityKey);
   }
-
 
   return null;
 }

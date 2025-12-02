@@ -27,8 +27,8 @@ function guessMimeType(filename: string): string {
 function filenameToAlt(filename: string): string {
   const withoutExt = filename.replace(/\.[^.]+$/, "");
   return withoutExt
-    .replace(/[_\-]+/g, " ")
-    .replace(/\s+/g, " ")
+    .replace(/[_-]+/g, " ") // normalize separators
+    .replace(/\s+/g, " ")   // collapse spaces
     .trim();
 }
 
@@ -63,7 +63,8 @@ export async function generateAltTextForFile(
       imageBase64: base64,
       mimeType,
       filename: file.name,
-      prompt: "Provide a clear, concise alt text (max 1 sentence) describing this image.",
+      prompt:
+        "Provide a clear, concise alt text (max 1 sentence) describing this image.",
     };
 
     const result = await provider.generateAltText(request);
