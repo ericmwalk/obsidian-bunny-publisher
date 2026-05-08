@@ -25,7 +25,7 @@ export class PerplexityAltTextProvider implements AltTextProvider {
   private apiKey: string;
   private model: string;
 
-  constructor(apiKey: string, model: string = "sonar") {
+  constructor(apiKey: string, model: string = "sonar-pro") {
     this.apiKey = apiKey;
     this.model = model;
   }

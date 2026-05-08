@@ -1,7 +1,7 @@
 {
   "id": "bunny-publisher",
   "name": "Bunny Publisher",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "minAppVersion": "1.4.0",
   "description": "Upload images, videos, and files to Bunny.net storage.",
   "author": "Eric Walker",

@@ -1,7 +1,7 @@
 import { PluginSettingTab, Setting, App, setIcon } from "obsidian";
 import type BunnyPublisherPlugin from "../main";
 
-export type AIProviderType = "openai" | "gemini" | "perplexity" | "none";
+export type AIProviderType = "openai" | "gemini" | "perplexity" | "claude" | "none";
 
 export interface BunnySettings {
   storageZoneName: string;
@@ -13,8 +13,13 @@ export interface BunnySettings {
   useAiAltText: boolean;
   aiProvider: AIProviderType;
   openaiKey: string;
+  openaiModel: string;
   geminiKey: string;
+  geminiModel: string;
   perplexityKey: string;
+  perplexityModel: string;
+  claudeKey: string;
+  claudeModel: string;
 }
 
 export const DEFAULT_SETTINGS: BunnySettings = {
@@ -27,8 +32,13 @@ export const DEFAULT_SETTINGS: BunnySettings = {
   useAiAltText: false,
   aiProvider: "openai",
   openaiKey: "",
+  openaiModel: "",
   geminiKey: "",
+  geminiModel: "",
   perplexityKey: "",
+  perplexityModel: "",
+  claudeKey: "",
+  claudeModel: "",
 };
 
 export class BunnySettingTab extends PluginSettingTab {
@@ -190,6 +200,7 @@ export class BunnySettingTab extends PluginSettingTab {
         .addDropdown((drop) => {
           drop.addOption("openai", "OpenAI (ChatGPT)");
           drop.addOption("gemini", "Google Gemini");
+          drop.addOption("claude", "Anthropic Claude");
           drop.addOption("perplexity", "Perplexity");
           drop.addOption("none", "None (filename only)");
 
@@ -226,6 +237,19 @@ export class BunnySettingTab extends PluginSettingTab {
             await this.plugin.saveSettings();
           }
         );
+
+        new Setting(containerEl)
+          .setName("OpenAI model")
+          .setDesc("Leave blank to use the default (gpt-4o-mini).")
+          .addText((t) =>
+            t
+              .setPlaceholder("gpt-4o-mini")
+              .setValue(this.plugin.settings.openaiModel)
+              .onChange(async (v) => {
+                this.plugin.settings.openaiModel = v.trim();
+                await this.plugin.saveSettings();
+              })
+          );
       }
 
       /* ------------------------------
@@ -252,6 +276,58 @@ export class BunnySettingTab extends PluginSettingTab {
             await this.plugin.saveSettings();
           }
         );
+
+        new Setting(containerEl)
+          .setName("Gemini model")
+          .setDesc("Leave blank to use the default (gemini-2.5-flash). Free-tier options: gemini-2.5-flash, gemini-2.5-flash-lite.")
+          .addText((t) =>
+            t
+              .setPlaceholder("gemini-2.5-flash")
+              .setValue(this.plugin.settings.geminiModel)
+              .onChange(async (v) => {
+                this.plugin.settings.geminiModel = v.trim();
+                await this.plugin.saveSettings();
+              })
+          );
+      }
+
+      /* ------------------------------
+       * CLAUDE KEY INPUT (masked)
+       * ------------------------------ */
+      if (this.plugin.settings.aiProvider === "claude") {
+        const claudeSetting = new Setting(containerEl)
+          .setName("Anthropic API key")
+          .setDesc(
+            createFragment((frag) => {
+              frag.appendText("Used for Claude alt text generation. ");
+              frag.createEl("a", {
+                href: "https://console.anthropic.com/settings/keys",
+                text: "Get a key",
+              });
+            })
+          );
+
+        addMaskedInput(
+          claudeSetting,
+          () => this.plugin.settings.claudeKey,
+          async (v) => {
+            this.plugin.settings.claudeKey = v;
+            await this.plugin.saveSettings();
+          }
+        );
+
+        new Setting(containerEl)
+          .setName("Claude model")
+          .setDesc("Leave blank to use the default (claude-haiku-4-5-20251001). Haiku is fast and cost-effective for alt text.")
+          .addText((t) =>
+            t
+              .setPlaceholder("claude-haiku-4-5-20251001")
+              .setValue(this.plugin.settings.claudeModel)
+              .onChange(async (v) => {
+                this.plugin.settings.claudeModel = v.trim();
+                await this.plugin.saveSettings();
+              })
+          );
       }
 
       /* ------------------------------
@@ -270,6 +346,19 @@ export class BunnySettingTab extends PluginSettingTab {
             await this.plugin.saveSettings();
           }
         );
+
+        new Setting(containerEl)
+          .setName("Perplexity model")
+          .setDesc("Leave blank to use the default (sonar). Note: vision support varies by model — sonar-pro is recommended for image inputs.")
+          .addText((t) =>
+            t
+              .setPlaceholder("sonar")
+              .setValue(this.plugin.settings.perplexityModel)
+              .onChange(async (v) => {
+                this.plugin.settings.perplexityModel = v.trim();
+                await this.plugin.saveSettings();
+              })
+          );
       }
     }
 

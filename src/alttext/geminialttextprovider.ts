@@ -24,7 +24,7 @@ export class GeminiAltTextProvider implements AltTextProvider {
   private apiKey: string;
   private model: string;
 
-  constructor(apiKey: string, model: string = "gemini-2.0-flash") {
+  constructor(apiKey: string, model: string = "gemini-2.5-flash") {
     this.apiKey = apiKey;
     this.model = model;
   }
@@ -34,7 +34,7 @@ export class GeminiAltTextProvider implements AltTextProvider {
       throw new Error("Gemini API key not configured.");
     }
 
-    const url = `https://generativelanguage.googleapis.com/v1/models/${this.model}:generateContent?key=${this.apiKey}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${this.model}:generateContent?key=${this.apiKey}`;
 
     const response = await requestUrl({
       url,

@@ -1,6 +1,6 @@
 {
   "name": "obsidian-bunny-publisher",
-  "version": "0.1.0",
+  "version": "1.1.0",
   "description": "Upload files from Obsidian to Bunny.net.",
   "main": "src/main.ts",
   "scripts": {

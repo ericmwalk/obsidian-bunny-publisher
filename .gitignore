@@ -13,6 +13,9 @@ main.js
 # Exclude macOS Finder (System Explorer) View States
 .DS_Store
 
+# dev notes
+DEVLOG.md
+
 # other stuff
 *.iml
 .idea
