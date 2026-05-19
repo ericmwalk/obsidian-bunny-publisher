@@ -34,10 +34,11 @@ jobs:
       - name: Update versions.json
         run: |
           version=$(jq -r .version manifest.json)
+          minAppVersion=$(jq -r .minAppVersion manifest.json)
           if [ ! -f versions.json ]; then
             echo "{}" > versions.json
           fi
-          jq --arg v "v$version" --arg ver "$version" '.[$v]=$ver' versions.json > tmp.$$.json && mv tmp.$$.json versions.json
+          jq --arg v "$version" --arg min "$minAppVersion" '.[$v]=$min' versions.json > tmp.$$.json && mv tmp.$$.json versions.json
 
       - name: Commit version updates
         run: |
