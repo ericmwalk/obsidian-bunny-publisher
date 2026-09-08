@@ -1,5 +1,5 @@
 // src/alttext/AltTextGenerator.ts
-import { App, Notice, TFile } from "obsidian";
+import { App, Notice, TFile, requestUrl } from "obsidian";
 import type { BunnySettings } from "../settings";
 import { createAltTextProvider } from "./providerfactory";
 import type { AltTextRequest } from "./alttextprovider";
@@ -33,16 +33,15 @@ function filenameToAlt(filename: string): string {
 }
 
 /**
- * Main helper used by the plugin to generate alt text for a given TFile.
- * Uses the configured AI provider (OpenAI / Gemini), with filename fallback.
+ * Shared core: runs image bytes through the configured AI provider.
+ * Falls back to a filename-derived description if AI is disabled, unconfigured, or fails.
  */
-export async function generateAltTextForFile(
-  app: App,
+async function generateAltTextFromBytes(
   settings: BunnySettings,
-  file: TFile
+  buffer: ArrayBuffer,
+  filename: string
 ): Promise<string> {
-  // Fallback alt text if AI is disabled or fails
-  const fallback = filenameToAlt(file.name || "image");
+  const fallback = filenameToAlt(filename || "image");
 
   if (!settings.useAiAltText) {
     return fallback;
@@ -55,14 +54,13 @@ export async function generateAltTextForFile(
   }
 
   try {
-    const buffer = await app.vault.readBinary(file);
     const base64 = arrayBufferToBase64(buffer);
-    const mimeType = guessMimeType(file.name);
+    const mimeType = guessMimeType(filename);
 
     const request: AltTextRequest = {
       imageBase64: base64,
       mimeType,
-      filename: file.name,
+      filename,
       prompt:
         "Provide a clear, concise alt text (max 1 sentence) describing this image.",
     };
@@ -76,5 +74,43 @@ export async function generateAltTextForFile(
     console.error("AI alt text generation failed:", error);
     new Notice("AI alt text failed – using filename instead.");
     return fallback;
+  }
+}
+
+/**
+ * Main helper used by the plugin to generate alt text for a given TFile.
+ * Uses the configured AI provider (OpenAI / Gemini), with filename fallback.
+ */
+export async function generateAltTextForFile(
+  app: App,
+  settings: BunnySettings,
+  file: TFile
+): Promise<string> {
+  const buffer = await app.vault.readBinary(file);
+  return generateAltTextFromBytes(settings, buffer, file.name);
+}
+
+/**
+ * Generates alt text for an image that's already been uploaded and is only
+ * reachable by URL (e.g. the local vault copy was deleted after upload).
+ */
+export async function generateAltTextForUrl(
+  settings: BunnySettings,
+  url: string
+): Promise<string> {
+  const filename = decodeURIComponent(url.split("/").pop()?.split("?")[0] || "image");
+
+  // Skip the network fetch entirely when AI alt text isn't configured.
+  if (!settings.useAiAltText) {
+    return filenameToAlt(filename);
+  }
+
+  try {
+    const response = await requestUrl({ url, method: "GET" });
+    return generateAltTextFromBytes(settings, response.arrayBuffer, filename);
+  } catch (error) {
+    console.error("Failed to fetch image for alt text:", error);
+    new Notice(`Could not fetch ${filename} – using filename instead.`);
+    return filenameToAlt(filename);
   }
 }

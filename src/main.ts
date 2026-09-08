@@ -1,7 +1,7 @@
 import { Plugin, Notice, TFile, MarkdownView } from "obsidian";
 import { BunnySettings, BunnySettingTab, DEFAULT_SETTINGS } from "./settings";
 import { uploadToBunny } from "./bunnyuploader";
-import { generateAltTextForFile } from "./alttext/alttextgenerator";
+import { generateAltTextForFile, generateAltTextForUrl } from "./alttext/alttextgenerator";
 
 export default class BunnyPublisherPlugin extends Plugin {
   settings: BunnySettings;
@@ -32,15 +32,20 @@ export default class BunnyPublisherPlugin extends Plugin {
           return;
         }
 
-        new Notice(`Uploading ${matches.length} file(s)…`);
+        const total = matches.length;
+        // Persistent notice (duration 0 = stays open) updated in place so
+        // progress is always visible instead of individual toasts coming and going.
+        const progress = new Notice("", 0);
 
         let updated = content;
         let uploadCount = 0;
         let deletedCount = 0;
         let failCount = 0;
 
-        for (const match of matches) {
+        for (let i = 0; i < matches.length; i++) {
+          const match = matches[i];
           const filename = match[1];
+          const step = `${i + 1}/${total}`;
 
           console.debug("Found embed:", filename);
 
@@ -63,7 +68,7 @@ export default class BunnyPublisherPlugin extends Plugin {
           }
 
           try {
-            new Notice(`Uploading ${file.name}…`);
+            progress.setMessage(`Uploading ${step}: ${file.name}…`);
 
             // Upload to Bunny
             const cdnUrl = await uploadToBunny(this.app, file, this.settings);
@@ -79,7 +84,7 @@ export default class BunnyPublisherPlugin extends Plugin {
 
               if (this.settings.useAiAltText) {
                 try {
-                  new Notice(`Generating alt text for ${file.name}…`);
+                  progress.setMessage(`Generating alt text ${step}: ${file.name}…`);
                   alt = await generateAltTextForFile(
                     this.app,
                     this.settings,
@@ -113,16 +118,14 @@ export default class BunnyPublisherPlugin extends Plugin {
             failCount++;
 
             console.error("Upload failed for", filename, e);
-
-            const message =
-              e instanceof Error ? e.message : "Unknown error during upload.";
-
-            new Notice(`Failed to upload ${filename}: ${message}`);
+            progress.setMessage(`Failed ${step}: ${filename} — continuing…`);
           }
         }
 
         // Update note contents with replaced embeds
         editor.setValue(updated);
+
+        progress.hide();
 
         /* -------------------------------------------------
          * SUMMARY NOTICE
@@ -140,7 +143,75 @@ export default class BunnyPublisherPlugin extends Plugin {
       }
     );
 
+    this.addCommand({
+      id: "bunny-fill-missing-alt-text",
+      name: "Add alt text to images missing it",
+      callback: () => this.fillMissingAltText(),
+    });
+
     this.addSettingTab(new BunnySettingTab(this.app, this));
+  }
+
+  private async fillMissingAltText() {
+    const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+    if (!view) {
+      new Notice("Open a Markdown note to add alt text.");
+      return;
+    }
+
+    if (!this.settings.cdnHostname) {
+      new Notice("Set a CDN hostname in Bunny Publisher settings first.");
+      return;
+    }
+
+    const editor = view.editor;
+    const content = editor.getValue();
+
+    const hostEscaped = this.settings.cdnHostname.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const imageRegex = new RegExp(
+      `!\\[\\]\\((https?:\\/\\/${hostEscaped}\\/[^)\\s]+)\\)`,
+      "g"
+    );
+    const matches = [...content.matchAll(imageRegex)];
+
+    if (matches.length === 0) {
+      new Notice("No images missing alt text found.");
+      return;
+    }
+
+    const total = matches.length;
+    const progress = new Notice("", 0);
+
+    let updated = content;
+    let filled = 0;
+    let failed = 0;
+
+    for (let i = 0; i < matches.length; i++) {
+      const url = matches[i][1];
+      const step = `${i + 1}/${total}`;
+      const label = decodeURIComponent(url.split("/").pop()?.split("?")[0] || url);
+
+      try {
+        progress.setMessage(`Alt text ${step}: ${label}…`);
+        const alt = await generateAltTextForUrl(this.settings, url);
+        updated = updated.replace(`![](${url})`, `![${alt}](${url})`);
+        filled++;
+      } catch (e) {
+        failed++;
+        console.error("Alt text fill failed for", url, e);
+        progress.setMessage(`Failed ${step}: ${label} — continuing…`);
+      }
+    }
+
+    editor.setValue(updated);
+
+    progress.hide();
+
+    let summary = `Filled alt text for ${filled} image${filled !== 1 ? "s" : ""}`;
+    if (failed > 0) summary += ` • failed ${failed}`;
+    summary += ".";
+
+    new Notice(summary);
   }
 
   async loadSettings() {
