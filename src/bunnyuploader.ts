@@ -58,7 +58,7 @@ export async function uploadToBunny(
     const cdnUrl = `https://${settings.cdnHostname}/${folderPath}/${safeName}`;
 
     // Rename local file incase it will be retained
-    if (safeName !== file.name) {
+    if (safeName !== file.name && file.parent) {
       const newPath = file.parent.path + "/" + safeName;
       await app.fileManager.renameFile(file, newPath);
       console.debug(`Renamed local file: ${file.name} → ${safeName}`);
