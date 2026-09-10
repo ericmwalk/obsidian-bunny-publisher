@@ -1,5 +1,9 @@
-import { PluginSettingTab, Setting, App, setIcon } from "obsidian";
-import type BunnyPublisherPlugin from "../main";
+import { Plugin, PluginSettingTab, Setting, App, setIcon } from "obsidian";
+
+interface BunnyPublisherPluginLike extends Plugin {
+  settings: BunnySettings;
+  saveSettings(): Promise<void>;
+}
 
 export type AIProviderType = "openai" | "gemini" | "perplexity" | "claude" | "none";
 
@@ -42,9 +46,9 @@ export const DEFAULT_SETTINGS: BunnySettings = {
 };
 
 export class BunnySettingTab extends PluginSettingTab {
-  plugin: BunnyPublisherPlugin;
+  plugin: BunnyPublisherPluginLike;
 
-  constructor(app: App, plugin: BunnyPublisherPlugin) {
+  constructor(app: App, plugin: BunnyPublisherPluginLike) {
     super(app, plugin);
     this.plugin = plugin;
   }

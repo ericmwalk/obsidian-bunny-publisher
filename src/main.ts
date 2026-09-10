@@ -16,7 +16,7 @@ export default class BunnyPublisherPlugin extends Plugin {
       "Upload embedded images to Bunny.net",
       async () => {
         const view = this.app.workspace.getActiveViewOfType(MarkdownView);
-        if (!view) {
+        if (!view || !view.file) {
           new Notice("Open a Markdown note to upload embedded images.");
           return;
         }
